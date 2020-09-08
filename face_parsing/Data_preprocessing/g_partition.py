@@ -1,58 +1,67 @@
-import os
+import os, sys
 import shutil
 import pandas as pd
 from shutil import copyfile
 from utils import make_folder
+import tqdm
+import cv2
+
+assert len(sys.argv) == 2, "usage: python g_partition.py $CelebAMaskHQ_ROOT"
+root = sys.argv[1]
+
+LB_SIZE = (512, 512)
 
 #### source data path
-s_label = 'CelebAMask-HQ-label'
-s_img = 'CelebA-HQ-img'
+s_label = os.path.join(root, 'CelebAMask-HQ-mask')
+s_img = os.path.join(root, 'CelebA-HQ-img')
 #### destination training data path
-d_train_label = 'train_label'
-d_train_img = 'train_img'
-#### destination testing data path
-d_test_label = 'test_label'
-d_test_img = 'test_img'
-#### val data path
-d_val_label = 'val_label'
-d_val_img = 'val_img'
+d_train = os.path.join(root, 'train')
+d_val = os.path.join(root, 'val')
+d_test = os.path.join(root, 'test')
 
 #### make folder
-make_folder(d_train_label)
-make_folder(d_train_img)
-make_folder(d_test_label)
-make_folder(d_test_img)
-make_folder(d_val_label)
-make_folder(d_val_img)
+make_folder(d_train)
+make_folder(d_val)
+make_folder(d_test)
 
 #### calculate data counts in destination folder
 train_count = 0
 test_count = 0
 val_count = 0
 
-image_list = pd.read_csv('CelebA-HQ-to-CelebA-mapping.txt', delim_whitespace=True, header=None)
-f_train = open('train_list.txt', 'w')
-f_val = open('val_list.txt', 'w')
-f_test = open('test_list.txt', 'w')
+mapping = os.path.join(root, 'CelebA-HQ-to-CelebA-mapping.txt')
+image_list = pd.read_csv(mapping, delim_whitespace=True, header=None).iloc[1:]
 
-for idx, x in enumerate(image_list.loc[:, 1]):
-    print (idx, x)
+def resize_and_write(idx, count):
+    in_fn = os.path.join(s_img, str(idx)+'.jpg')
+    this_image = cv2.imread(in_fn)
+    out_fn = os.path.join(d_val, str(val_count)+'.jpg')
+    this_image_resize = cv2.resize(this_image, LB_SIZE, interpolation=cv2.INTER_LINEAR)
+    rt = cv2.imwrite(out_fn, this_image_resize)
+    if not rt:
+        raise ValueError('Insuccessful image write at: {}'.format(save_path))
+    # print('Origin: {}, Saving to: {}'.format(in_fn, out_fn))
+
+
+for idx, x in enumerate(tqdm.tqdm(image_list.loc[:, 1])):
+    # print (idx, x)
+    x = int(x)
     if x >= 162771 and x < 182638:
-        copyfile(os.path.join(s_label, str(idx)+'.png'), os.path.join(d_val_label, str(val_count)+'.png'))
-        copyfile(os.path.join(s_img, str(idx)+'.jpg'), os.path.join(d_val_img, str(val_count)+'.jpg'))        
+        copyfile(os.path.join(s_label, str(idx)+'.png'), os.path.join(d_val, str(val_count)+'.png'))
+        # copyfile(os.path.join(s_img, str(idx)+'.jpg'), os.path.join(d_val, str(val_count)+'.jpg'))        
+        resize_and_write(idx, val_count)
         val_count += 1
 
     elif x >= 182638:
-        copyfile(os.path.join(s_label, str(idx)+'.png'), os.path.join(d_test_label, str(test_count)+'.png'))
-        copyfile(os.path.join(s_img, str(idx)+'.jpg'), os.path.join(d_test_img, str(test_count)+'.jpg'))
+        copyfile(os.path.join(s_label, str(idx)+'.png'), os.path.join(d_test, str(test_count)+'.png'))
+        # copyfile(os.path.join(s_img, str(idx)+'.jpg'), os.path.join(d_test, str(test_count)+'.jpg'))
+        resize_and_write(idx, test_count)
         test_count += 1 
     else:
-        copyfile(os.path.join(s_label, str(idx)+'.png'), os.path.join(d_train_label, str(train_count)+'.png'))
-        copyfile(os.path.join(s_img, str(idx)+'.jpg'), os.path.join(d_train_img, str(train_count)+'.jpg'))
+        copyfile(os.path.join(s_label, str(idx)+'.png'), os.path.join(d_train, str(train_count)+'.png'))
+        # copyfile(os.path.join(s_img, str(idx)+'.jpg'), os.path.join(d_train, str(train_count)+'.jpg'))
+        resize_and_write(idx, train_count)
         train_count += 1  
 
+print ('train: {}, val: {}, test: {}'.format(train_count, val_count, test_count))
 print (train_count + test_count + val_count)
-#### close the file
-f_train.close()
-f_val.close()
-f_test.close()
