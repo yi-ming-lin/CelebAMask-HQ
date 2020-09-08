@@ -10,8 +10,9 @@ root = sys.argv[1]
 
 np.savetxt(os.path.join(root, 'colormap.txt'), color_list, '%d')
 
-folder_base = os.path.join(root, 'CelebAMask-HQ-mask')
-folder_save = os.path.join(root, 'CelebAMask-HQ-mask-color')
+# folder_base = os.path.join(root, 'CelebAMask-HQ-mask')
+folder_base = os.path.join(root, 'val')
+folder_save = os.path.join(root, 'CelebAMask-HQ-mask-color-val')
 img_num = 10
 
 make_folder(folder_save)
